@@ -68,12 +68,23 @@ export POSTGRES_PASSWORD="your-password"
 
 Here is the sequence of prompts used to generate this project:
 
-1.  **Data Analysis**:
-    `analyze first 5 lines of the @OnlineRetail.csv file and create me a start schema for the data warehouse. create dim_product, dim_date, dim_customer and fact_sales tables.`
-2.  **Schema Implementation**:
-    `implement this schema using postgres extension`
-3.  **ETL Script Generation**:
-    `generate a python ETL script named etl_process.py that uses pandas and psycopg2 to load OnlineRetail.csv into the postgres tables. handle deduplication, null customer IDs, and use surrogate keys for the fact table. implement batching and idempotency with ON CONFLICT.`
+#### 1. Data Analysis & Schema Generation
+- `analyze first 5 lines of the @OnlineRetail.csv file and create me a start schema for the data warehouse. create dim_product, dim_date, dim_customer and fact_sales tables.`
+- `implement this schema using postgres extension`
+- `generate a python ETL script named etl_process.py that uses pandas and psycopg2 to load OnlineRetail.csv into the postgres tables. handle deduplication, null customer IDs, and use surrogate keys for the fact table. implement batching and idempotency with ON CONFLICT.`
+
+#### 2. Superset Dashboard Implementation
+- `use superset mcp and list me datasources avaiable`
+- `I want you to use superset MCP server to connect to superset. Analyze database Online-Retail-DW and generate me a plan for executive dashboard design`
+- `Dont use @OnlineRetail.csv use online-retail-dw database where data is loaded. I want you to design dashboard with postgress connection and SQL queries there`
+- `Use this plan and implement this dashboard in apache superset via MCP`
+- `the chart revenue by country is not rendering its throwing error An error occurred while rendering the visualization: Error: Item with key "bar" is not registered.`
+- `can you fix Hourly Sales Volume chart to use x-axis hour`
+- `fix revenue by country chart to use map to show amounts per countries`
+- `fix the chart "Top 10 Products by Revenue" to use horizontal bar chart.`
+- `I got this error "Duplicate column/metric labels: "product_description". Please make sure all columns and metrics have a unique label."`
+- `create me a chart of treemap for products distribution in online retail datasource using apache superset mcp`
+- `update readme.md file with all prompts used in this conversation`
 
 
 ## Key Features

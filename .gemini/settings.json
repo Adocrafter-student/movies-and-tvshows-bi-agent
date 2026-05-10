@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "superset-mcp": {
+      "command": "npx",
+      "args": ["-y", "superset-mcp"],
+      "env": {
+        "SUPERSET_BASE_URL": "http://localhost:8088",
+        "SUPERSET_USERNAME": "admin",
+        "SUPERSET_PASSWORD": "admin"
+      }
+    }
+  }
+}
