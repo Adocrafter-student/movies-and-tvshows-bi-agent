@@ -1,0 +1,6 @@
+[mcp_servers.netflix_bi]
+command = "python"
+args = ["-m", "netflix_bi_agent.mcp_server"]
+env_vars = ["BI_AGENT_DB_URL"]
+startup_timeout_sec = 20
+tool_timeout_sec = 60

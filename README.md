@@ -1,105 +1,122 @@
-# Online Retail Data Warehouse ETL
+# Netflix Movies and TV Shows BI Agent
 
-This project implements a Star Schema data warehouse using PostgreSQL and a Python-based ETL process for the "Online Retail" dataset.
+This project implements Phase 2 of the BI Agent assignment around the Netflix Movies and TV Shows dataset. It uses Supabase PostgreSQL for the warehouse, a Python ETL pipeline for ingestion, and a FastMCP server so Codex CLI can inspect the schema and run safe read-only SQL.
+
+The canonical project dataset is `datasets/netflix_titles.csv`.
 
 ## Project Structure
 
-- `OnlineRetail.csv`: Source dataset containing transactions.
-- `etl_process.py`: Main ETL script (Extract, Transform, Load).
-- `.env`: Database connection credentials.
-- `requirements.txt`: Python dependencies.
+- `datasets/netflix_titles.csv`: source dataset.
+- `migrations/001_netflix_schema.sql`: Supabase PostgreSQL warehouse schema.
+- `netflix_bi_agent/etl.py`: idempotent Netflix CSV ingestion.
+- `netflix_bi_agent/mcp_server.py`: Codex MCP server.
+- `netflix_bi_agent/sql_safety.py`: read-only SQL validation.
+- `docs/bi_agent_system_instructions.md`: prompt engineering deliverable.
+- `docs/golden_queries.md`: evaluation questions and expected SQL patterns.
+- `.codex/config.toml`: project-scoped Codex MCP configuration.
 
-## Star Schema Design
+## Warehouse Design
 
-The data is organized into a Star Schema for optimized analytical querying:
+The warehouse uses one row per Netflix title in `fact_title_catalog`.
 
-- **Fact Table**: `fact_sales` (measures: quantity, unit_price, total_amount)
-- **Dimension Tables**:
-  - `dim_product`: Product descriptions and stock codes.
-  - `dim_customer`: Customer IDs and geographical information.
-  - `dim_date`: Granular time dimension (year, month, day, quarter, hour, day of week).
+Dimensions:
 
-## Prerequisites
+- `dim_title`
+- `dim_content_type`
+- `dim_rating`
+- `dim_date_added`
+- `dim_genre`
+- `dim_country`
+- `dim_person`
 
-- Python 3.10+
-- PostgreSQL database
-- Virtual environment (recommended)
+Bridge tables:
 
-## Setup Instructions
+- `bridge_title_genre`
+- `bridge_title_country`
+- `bridge_title_person`
 
-1. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+The bridge tables normalize CSV columns that contain comma-separated values, such as genres, countries, directors, and cast members.
 
-2. **Configure Environment**:
-   Create a `.env` file in the root directory with your PostgreSQL credentials:
-   ```env
-   POSTGRES_HOST=your_host
-   POSTGRES_PORT=5432
-   POSTGRES_DATABASE=online-retail-dw
-   POSTGRES_USER=your_user
-   POSTGRES_PASSWORD=your_password
-   ```
+## Setup
 
-3. **Run ETL Process**:
-   Execute the Python script to clean the data and populate the database:
-   ```bash
-   python etl_process.py
-   ```
-
-## Built with Gemini CLI
-
-This project was developed using the Gemini CLI with the PostgreSQL extension.
-
-### PostgreSQL Extension Configuration
-
-The Gemini CLI uses the following environment variables to interact with the database. These should be set in your terminal session or stored in a `.env` file (the CLI automatically detects local `.env` files).
+1. Install dependencies:
 
 ```bash
-export POSTGRES_HOST="your-db-host"
-export POSTGRES_PORT="5432"
-export POSTGRES_DATABASE="online-retail-dw"
-export POSTGRES_USER="your-user"
-export POSTGRES_PASSWORD="your-password"
+pip install -r requirements.txt
 ```
 
-### Example Development Prompts
+2. Create a Supabase project and copy the PostgreSQL connection string from the Supabase dashboard.
 
-Here is the sequence of prompts used to generate this project:
+3. Create `.env` from `.env.example`:
 
-#### 1. Data Analysis & Schema Generation
-- `analyze first 5 lines of the @OnlineRetail.csv file and create me a start schema for the data warehouse. create dim_product, dim_date, dim_customer and fact_sales tables.`
-- `implement this schema using postgres extension`
-- `generate a python ETL script named etl_process.py that uses pandas and psycopg2 to load OnlineRetail.csv into the postgres tables. handle deduplication, null customer IDs, and use surrogate keys for the fact table. implement batching and idempotency with ON CONFLICT.`
+```env
+SUPABASE_DB_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
+BI_AGENT_DB_URL=postgresql://bi_agent_reader:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
+```
 
-#### 2. Superset Dashboard Implementation
-- `use superset mcp and list me datasources avaiable`
-- `I want you to use superset MCP server to connect to superset. Analyze database Online-Retail-DW and generate me a plan for executive dashboard design`
-- `Dont use @OnlineRetail.csv use online-retail-dw database where data is loaded. I want you to design dashboard with postgress connection and SQL queries there`
-- `Use this plan and implement this dashboard in apache superset via MCP`
-- `the chart revenue by country is not rendering its throwing error An error occurred while rendering the visualization: Error: Item with key "bar" is not registered.`
-- `can you fix Hourly Sales Volume chart to use x-axis hour`
-- `fix revenue by country chart to use map to show amounts per countries`
-- `fix the chart "Top 10 Products by Revenue" to use horizontal bar chart.`
-- `I got this error "Duplicate column/metric labels: "product_description". Please make sure all columns and metrics have a unique label."`
-- `create me a chart of treemap for products distribution in online retail datasource using apache superset mcp`
-- `update readme.md file with all prompts used in this conversation`
+4. Apply the schema migration:
 
-#### 3. Data Lake Implementation
+```bash
+python -m netflix_bi_agent.apply_migration
+```
 
-- I want to expand online-retail-dw with additional table that provides info to the dim_products table. New table should contain reference to product, date and recommendation columns. 
-   Use postgress MCP to upgrade the databse structure   
+5. Load the Netflix dataset:
 
-- for top 10 selling products in dim_products table do a search on web using brave search api mcp server and gather intelligence about them. Save the results into product_search.txt   
-   file    
+```bash
+python -m netflix_bi_agent.etl
+```
 
-- use the @product_search.txt and create etl_process2.py script that will load the recommedations from the txt file into dim_product_recommendations table. If there is missing data do 
-   another brave search to gather all necessary intelligence. 
-   
-- 
-## Key Features
+## Read-Only Agent Role
 
-- **Idempotent Loads**: Uses `ON CONFLICT` clauses to prevent duplicate data if the script is run multiple times.
-- **Data Cleaning**: Handles missing customer IDs, deduplicates records, and calculates `total_amount`.
-- **Batch Processing**: Inserts data in batches of 1000 rows for better performance and memory management.
+Use a dedicated read-only role for `BI_AGENT_DB_URL` when possible:
+
+```sql
+create role bi_agent_reader with login password 'replace-with-strong-password';
+grant usage on schema public to bi_agent_reader;
+grant select on all tables in schema public to bi_agent_reader;
+alter default privileges in schema public grant select on tables to bi_agent_reader;
+```
+
+If you are using Supabase connection poolers, use the session pooler for long-lived MCP sessions. For serverless/short-lived jobs, transaction pooler can work, but prepared statements may need to be disabled depending on the client.
+
+## Codex MCP Setup
+
+This repo includes `.codex/config.toml`:
+
+```toml
+[mcp_servers.netflix_bi]
+command = "python"
+args = ["-m", "netflix_bi_agent.mcp_server"]
+env_vars = ["BI_AGENT_DB_URL"]
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+```
+
+After setting `BI_AGENT_DB_URL`, restart Codex from the repository root. In Codex CLI, use `/mcp` to confirm the `netflix_bi` server is active.
+
+The server exposes these tools:
+
+- `get_schema_summary`
+- `describe_table`
+- `get_relationships`
+- `validate_sql`
+- `run_readonly_sql`
+
+## Agent Rules
+
+The full system instructions are in `docs/bi_agent_system_instructions.md`. In short, the agent should inspect the schema, generate PostgreSQL read-only SQL, use bridge tables for multi-value fields, and return both SQL and a concise business interpretation.
+
+## Verification
+
+Run local tests:
+
+```bash
+python -m unittest discover
+python -m compileall netflix_bi_agent
+```
+
+Database integration tests are skipped unless `BI_AGENT_DB_URL` is set.
+
+## Legacy Boilerplate
+
+The files `OnlineRetail.csv`, `etl_process.py`, `etl_process2.py`, and `product_search.txt` came from the original boilerplate flow. They are not part of the Netflix-first Phase 2 implementation.
