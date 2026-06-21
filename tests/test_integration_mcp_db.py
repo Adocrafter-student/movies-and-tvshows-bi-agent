@@ -10,6 +10,12 @@ class McpDatabaseIntegrationTests(unittest.TestCase):
         summary = get_schema_summary()
         table_names = {table["table_name"] for table in summary["tables"]}
         self.assertIn("fact_title_catalog", table_names)
+        self.assertIn("bridge_catalog_genre", table_names)
+        self.assertIn("bridge_catalog_country", table_names)
+        self.assertIn("bridge_catalog_person", table_names)
+        self.assertNotIn("bridge_title_genre", table_names)
+        self.assertNotIn("bridge_title_country", table_names)
+        self.assertNotIn("bridge_title_person", table_names)
 
     def test_readonly_query_runs(self):
         from netflix_bi_agent.mcp_server import run_readonly_sql

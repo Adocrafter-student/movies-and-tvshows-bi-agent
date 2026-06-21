@@ -7,7 +7,8 @@ The canonical project dataset is `datasets/netflix_titles.csv`.
 ## Project Structure
 
 - `datasets/netflix_titles.csv`: source dataset.
-- `migrations/001_netflix_schema.sql`: Supabase PostgreSQL warehouse schema.
+- `migrations/001_netflix_schema.sql`: fresh Supabase PostgreSQL warehouse schema.
+- `migrations/002_fact_centered_bridges.sql`: existing-database migration for the fact-centered bridge refactor.
 - `netflix_bi_agent/etl.py`: idempotent Netflix CSV ingestion.
 - `netflix_bi_agent/mcp_server.py`: Codex MCP server.
 - `netflix_bi_agent/sql_safety.py`: read-only SQL validation.
@@ -31,9 +32,9 @@ Dimensions:
 
 Bridge tables:
 
-- `bridge_title_genre`
-- `bridge_title_country`
-- `bridge_title_person`
+- `bridge_catalog_genre`
+- `bridge_catalog_country`
+- `bridge_catalog_person`
 
 The bridge tables normalize CSV columns that contain comma-separated values, such as genres, countries, directors, and cast members.
 
@@ -54,13 +55,19 @@ SUPABASE_DB_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.
 BI_AGENT_DB_URL=postgresql://bi_agent_reader:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
 ```
 
-4. Apply the schema migration:
+4. Apply the schema migration for a fresh Supabase database:
 
 ```bash
 python -m netflix_bi_agent.apply_migration
 ```
 
-5. Load the Netflix dataset:
+For an existing database that already had the earlier title-centered bridge tables, apply the follow-up migration once:
+
+```bash
+python -m netflix_bi_agent.apply_migration --path migrations/002_fact_centered_bridges.sql
+```
+
+5. Load or reload the Netflix dataset:
 
 ```bash
 python -m netflix_bi_agent.etl
