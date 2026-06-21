@@ -233,34 +233,34 @@ def _upsert_titles(cur, rows: list[NetflixTitle]) -> dict[str, int]:
 def _refresh_bridges(
     cur,
     rows: list[NetflixTitle],
-    title_map: dict[str, int],
+    catalog_map: dict[str, int],
     genre_map: dict[str, int],
     country_map: dict[str, int],
     person_map: dict[str, int],
 ) -> None:
-    title_keys = [title_map[row.show_id] for row in rows]
-    if not title_keys:
+    catalog_keys = [catalog_map[row.show_id] for row in rows]
+    if not catalog_keys:
         return
 
-    cur.execute("delete from public.bridge_title_genre where title_key = any(%s)", (title_keys,))
-    cur.execute("delete from public.bridge_title_country where title_key = any(%s)", (title_keys,))
-    cur.execute("delete from public.bridge_title_person where title_key = any(%s)", (title_keys,))
+    cur.execute("delete from public.bridge_catalog_genre where title_catalog_key = any(%s)", (catalog_keys,))
+    cur.execute("delete from public.bridge_catalog_country where title_catalog_key = any(%s)", (catalog_keys,))
+    cur.execute("delete from public.bridge_catalog_person where title_catalog_key = any(%s)", (catalog_keys,))
 
     genre_rows: list[tuple[int, int]] = []
     country_rows: list[tuple[int, int]] = []
     person_rows: list[tuple[int, int, str]] = []
 
     for row in rows:
-        title_key = title_map[row.show_id]
-        genre_rows.extend((title_key, genre_map[genre]) for genre in row.genres)
-        country_rows.extend((title_key, country_map[country]) for country in row.countries)
-        person_rows.extend((title_key, person_map[person], "director") for person in row.directors)
-        person_rows.extend((title_key, person_map[person], "cast") for person in row.cast_members)
+        title_catalog_key = catalog_map[row.show_id]
+        genre_rows.extend((title_catalog_key, genre_map[genre]) for genre in row.genres)
+        country_rows.extend((title_catalog_key, country_map[country]) for country in row.countries)
+        person_rows.extend((title_catalog_key, person_map[person], "director") for person in row.directors)
+        person_rows.extend((title_catalog_key, person_map[person], "cast") for person in row.cast_members)
 
     _execute_values(
         cur,
         """
-        insert into public.bridge_title_genre (title_key, genre_key)
+        insert into public.bridge_catalog_genre (title_catalog_key, genre_key)
         values %s
         on conflict do nothing
         """,
@@ -269,7 +269,7 @@ def _refresh_bridges(
     _execute_values(
         cur,
         """
-        insert into public.bridge_title_country (title_key, country_key)
+        insert into public.bridge_catalog_country (title_catalog_key, country_key)
         values %s
         on conflict do nothing
         """,
@@ -278,7 +278,7 @@ def _refresh_bridges(
     _execute_values(
         cur,
         """
-        insert into public.bridge_title_person (title_key, person_key, role)
+        insert into public.bridge_catalog_person (title_catalog_key, person_key, role)
         values %s
         on conflict do nothing
         """,
@@ -293,7 +293,7 @@ def _upsert_fact(
     content_type_map: dict[str, int],
     rating_map: dict[str, int],
     date_map: dict[date, int],
-) -> None:
+) -> dict[str, int]:
     fact_rows = []
     for row in rows:
         type_lc = row.content_type.lower()
@@ -334,6 +334,15 @@ def _upsert_fact(
         fact_rows,
     )
 
+    cur.execute(
+        """
+        select fact.title_catalog_key, title.show_id
+        from public.fact_title_catalog fact
+        join public.dim_title title on title.title_key = fact.title_key
+        """
+    )
+    return {show_id: title_catalog_key for title_catalog_key, show_id in cur.fetchall()}
+
 
 def run_etl(csv_path: str | Path = DEFAULT_DATASET_PATH, database_url: str | None = None) -> dict[str, int]:
     rows = load_netflix_csv(csv_path)
@@ -361,8 +370,8 @@ def run_etl(csv_path: str | Path = DEFAULT_DATASET_PATH, database_url: str | Non
             date_map = _upsert_dates(cur, rows)
             title_map = _upsert_titles(cur, rows)
 
-            _refresh_bridges(cur, rows, title_map, genre_map, country_map, person_map)
-            _upsert_fact(cur, rows, title_map, content_type_map, rating_map, date_map)
+            catalog_map = _upsert_fact(cur, rows, title_map, content_type_map, rating_map, date_map)
+            _refresh_bridges(cur, rows, catalog_map, genre_map, country_map, person_map)
 
         conn.commit()
 

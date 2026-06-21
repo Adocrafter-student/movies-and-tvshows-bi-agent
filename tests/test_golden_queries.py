@@ -18,15 +18,15 @@ GOLDEN_QUERIES = [
     (
         "top_countries",
         """
-        select c.country_name, count(distinct f.title_key) as title_count
+        select c.country_name, count(distinct f.title_catalog_key) as title_count
         from public.fact_title_catalog f
-        join public.bridge_title_country btc on btc.title_key = f.title_key
-        join public.dim_country c on c.country_key = btc.country_key
+        join public.bridge_catalog_country bcc on bcc.title_catalog_key = f.title_catalog_key
+        join public.dim_country c on c.country_key = bcc.country_key
         group by c.country_name
         order by title_count desc
         limit 10
         """,
-        ["bridge_title_country", "dim_country", "count(distinct f.title_key)"],
+        ["bridge_catalog_country", "dim_country", "count(distinct f.title_catalog_key)"],
     ),
     (
         "titles_added_by_month",
@@ -42,15 +42,15 @@ GOLDEN_QUERIES = [
     (
         "top_genres_by_content_type",
         """
-        select ct.type_name, g.genre_name, count(distinct f.title_key) as title_count
+        select ct.type_name, g.genre_name, count(distinct f.title_catalog_key) as title_count
         from public.fact_title_catalog f
         join public.dim_content_type ct on ct.content_type_key = f.content_type_key
-        join public.bridge_title_genre btg on btg.title_key = f.title_key
-        join public.dim_genre g on g.genre_key = btg.genre_key
+        join public.bridge_catalog_genre bcg on bcg.title_catalog_key = f.title_catalog_key
+        join public.dim_genre g on g.genre_key = bcg.genre_key
         group by ct.type_name, g.genre_name
         order by ct.type_name, title_count desc
         """,
-        ["bridge_title_genre", "dim_genre", "count(distinct f.title_key)"],
+        ["bridge_catalog_genre", "dim_genre", "count(distinct f.title_catalog_key)"],
     ),
     (
         "average_movie_duration_by_rating",

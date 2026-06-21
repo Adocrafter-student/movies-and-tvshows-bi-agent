@@ -51,25 +51,6 @@ create table if not exists public.dim_person (
     person_name text not null unique
 );
 
-create table if not exists public.bridge_title_genre (
-    title_key bigint not null references public.dim_title(title_key) on delete cascade,
-    genre_key bigint not null references public.dim_genre(genre_key) on delete restrict,
-    primary key (title_key, genre_key)
-);
-
-create table if not exists public.bridge_title_country (
-    title_key bigint not null references public.dim_title(title_key) on delete cascade,
-    country_key bigint not null references public.dim_country(country_key) on delete restrict,
-    primary key (title_key, country_key)
-);
-
-create table if not exists public.bridge_title_person (
-    title_key bigint not null references public.dim_title(title_key) on delete cascade,
-    person_key bigint not null references public.dim_person(person_key) on delete restrict,
-    role text not null check (role in ('director', 'cast')),
-    primary key (title_key, person_key, role)
-);
-
 create table if not exists public.fact_title_catalog (
     title_catalog_key bigserial primary key,
     title_key bigint not null unique references public.dim_title(title_key) on delete cascade,
@@ -85,6 +66,25 @@ create table if not exists public.fact_title_catalog (
     loaded_at timestamptz not null default now()
 );
 
+create table if not exists public.bridge_catalog_genre (
+    title_catalog_key bigint not null references public.fact_title_catalog(title_catalog_key) on delete cascade,
+    genre_key bigint not null references public.dim_genre(genre_key) on delete restrict,
+    primary key (title_catalog_key, genre_key)
+);
+
+create table if not exists public.bridge_catalog_country (
+    title_catalog_key bigint not null references public.fact_title_catalog(title_catalog_key) on delete cascade,
+    country_key bigint not null references public.dim_country(country_key) on delete restrict,
+    primary key (title_catalog_key, country_key)
+);
+
+create table if not exists public.bridge_catalog_person (
+    title_catalog_key bigint not null references public.fact_title_catalog(title_catalog_key) on delete cascade,
+    person_key bigint not null references public.dim_person(person_key) on delete restrict,
+    role text not null check (role in ('director', 'cast')),
+    primary key (title_catalog_key, person_key, role)
+);
+
 create index if not exists idx_fact_title_catalog_content_type
     on public.fact_title_catalog(content_type_key);
 
@@ -97,23 +97,23 @@ create index if not exists idx_fact_title_catalog_date_added
 create index if not exists idx_fact_title_catalog_release_year
     on public.fact_title_catalog(release_year);
 
-create index if not exists idx_bridge_title_genre_genre
-    on public.bridge_title_genre(genre_key);
+create index if not exists idx_bridge_catalog_genre_genre
+    on public.bridge_catalog_genre(genre_key);
 
-create index if not exists idx_bridge_title_country_country
-    on public.bridge_title_country(country_key);
+create index if not exists idx_bridge_catalog_country_country
+    on public.bridge_catalog_country(country_key);
 
-create index if not exists idx_bridge_title_person_person
-    on public.bridge_title_person(person_key);
+create index if not exists idx_bridge_catalog_person_person
+    on public.bridge_catalog_person(person_key);
 
 comment on table public.fact_title_catalog is
     'One catalog fact row per Netflix title. Measures include title_count and parsed duration/seasons.';
 
-comment on table public.bridge_title_genre is
-    'Many-to-many bridge between Netflix titles and genres from listed_in.';
+comment on table public.bridge_catalog_genre is
+    'Many-to-many bridge between catalog fact rows and genres from listed_in.';
 
-comment on table public.bridge_title_country is
-    'Many-to-many bridge between Netflix titles and production countries.';
+comment on table public.bridge_catalog_country is
+    'Many-to-many bridge between catalog fact rows and production countries.';
 
-comment on table public.bridge_title_person is
-    'Many-to-many bridge between Netflix titles and people, with role director or cast.';
+comment on table public.bridge_catalog_person is
+    'Many-to-many bridge between catalog fact rows and people, with role director or cast.';
