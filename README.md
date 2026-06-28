@@ -155,7 +155,6 @@ Use the `vw_superset_*` views created by `migrations/003_superset_views.sql` as 
 - `vw_superset_title_countries`
 - `vw_superset_title_people`
 
-The dashboard build guide is in `docs/superset_phase4.md`.
 
 If Superset says it cannot load the PostgreSQL driver, rebuild the custom image:
 
