@@ -9,11 +9,15 @@ The canonical project dataset is `datasets/netflix_titles.csv`.
 - `datasets/netflix_titles.csv`: source dataset.
 - `migrations/001_netflix_schema.sql`: fresh Supabase PostgreSQL warehouse schema.
 - `migrations/002_fact_centered_bridges.sql`: existing-database migration for the fact-centered bridge refactor.
+- `migrations/003_superset_views.sql`: dashboard-ready views for Apache Superset.
 - `netflix_bi_agent/etl.py`: idempotent Netflix CSV ingestion.
 - `netflix_bi_agent/mcp_server.py`: Codex MCP server.
 - `netflix_bi_agent/sql_safety.py`: read-only SQL validation.
 - `docs/bi_agent_system_instructions.md`: prompt engineering deliverable.
 - `docs/golden_queries.md`: evaluation questions and expected SQL patterns.
+- `docs/superset_phase4.md`: Superset connection, metrics, and dashboard guide.
+- `docker-compose.yml`: local Apache Superset service for Phase 4 dashboards.
+- `docker/superset/`: custom Superset image with PostgreSQL driver and admin bootstrap script.
 - `.codex/config.toml`: project-scoped Codex MCP configuration.
 
 ## Warehouse Design
@@ -73,6 +77,12 @@ python -m netflix_bi_agent.apply_migration --path migrations/002_fact_centered_b
 python -m netflix_bi_agent.etl
 ```
 
+6. Create dashboard-ready Superset views:
+
+```bash
+python -m netflix_bi_agent.apply_migration --path migrations/003_superset_views.sql
+```
+
 ## Read-Only Agent Role
 
 Use a dedicated read-only role for `BI_AGENT_DB_URL` when possible:
@@ -112,6 +122,54 @@ The server exposes these tools:
 ## Agent Rules
 
 The full system instructions are in `docs/bi_agent_system_instructions.md`. In short, the agent should inspect the schema, generate PostgreSQL read-only SQL, use bridge tables for multi-value fields, and return both SQL and a concise business interpretation.
+
+## Superset Dashboarding
+
+Phase 4 uses Apache Superset for dashboards and Supabase PostgreSQL as the source database. Superset should connect to the Supabase session pooler connection string with SSL enabled.
+
+Start local Superset:
+
+Make sure Docker Desktop is running first.
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+```text
+http://localhost:8088
+```
+
+Default local login, unless overridden in `.env`:
+
+```text
+username: admin
+password: admin
+```
+
+Use the `vw_superset_*` views created by `migrations/003_superset_views.sql` as Superset datasets:
+
+- `vw_superset_catalog_titles`
+- `vw_superset_title_genres`
+- `vw_superset_title_countries`
+- `vw_superset_title_people`
+
+
+If Superset says it cannot load the PostgreSQL driver, rebuild the custom image:
+
+```bash
+docker compose build --no-cache superset
+docker compose up
+```
+
+If Superset exits with an Alembic revision error after changing images, reset only the local Superset metadata volume:
+
+```bash
+docker compose down -v
+docker compose build --no-cache superset
+docker compose up
+```
 
 ## Verification
 
